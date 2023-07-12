@@ -1,22 +1,17 @@
 ---
-title: "R Notebook"
-output: html_notebook
+title: "Airbnb"
+output:
+  pdf_document: default
+  html_notebook: default
 ---
 
-This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
-
-Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
-
-```{r}
-plot(cars)
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## 2 Predict AirBnB Price 
-
-**1. Load the data. Select only relevant variables you need below, otherwise the dataset is hard to comprehend. Do basic sanity checks.**
-
-Answer:There are null values in bedrooms column.
+**Loaded data and performed sanity checks. Observed null values in bedrooms column.**
 ```{r}
+library(dplyr)
 airbnb_all <- read.delim("airbnb-vancouver-bc-listings.csv.bz2", sep=",")
 #head(airbnb_all)
 airbnb <- airbnb_all %>% select(price, bedrooms, room_type, accommodates)
@@ -30,9 +25,9 @@ any(is.na(airbnb$room_type))
 any(is.na(airbnb$accommodates))
 
 ```
-**2. Do the basic data cleaning: **
+**Cleaning Data**
 
-**(a) convert price to numeric. **
+**Converted price to numeric.**
 
 ```{r}
 library(stringr)
@@ -44,7 +39,7 @@ class(airbnb$price)
 head(airbnb)
 ```
 
-**(b) remove entries with missing or invalid price, bedrooms, and other variables you need below.**
+**Removed entries with missing or invalid price, bedrooms, and other variables**
 
 ```{r}
 mean(airbnb$bedrooms, na.rm = TRUE) 
@@ -52,9 +47,8 @@ mean(airbnb$bedrooms, na.rm = TRUE)
 airbnb$bedrooms[is.na(airbnb$bedrooms)] <- 2
 head(airbnb)
 ```
-**3. Analyze the distribution of price. Does it look like normal? Does it look like something else? Does it suggest you should do a log-transformation?**
 
-Answer: The distribution of price is a normal distribution. We should do a log transformation as price has a  lower bound.
+**Analyzed the distribution of price. It is a normal distribution. We should do a log transformation as price has a lower bound.**
 
 ```{r}
 library(ggplot2)
@@ -62,7 +56,7 @@ ggplot(airbnb, aes(x=price)) +
     geom_histogram(binwidth=100, colour="skyblue")
 ```
 
-**4. Convert the number of bedrooms into another variable with a limited number of categories only, such as 0, 1, 2, 3+, and use these categories in the models below.**
+**Converted the number of bedrooms into another variable with a limited number of categories only, such as 0, 1, 2, 3+, and used these categories in the models below.**
 
 ```{r}
 airbnb <- airbnb %>% mutate(BR= case_when(bedrooms == 0 ~ "0", 
@@ -72,9 +66,7 @@ airbnb <- airbnb %>% mutate(BR= case_when(bedrooms == 0 ~ "0",
 tail(airbnb,10)
 ```
 
-**5. Now estimate a linear regression model where you explain log price with number of BR-s (the BR categories you did above). Interpret the results. Which model behaves better in the sense of R2?**
-
-Answer: The higher the adjusted R square, the better the model. Linear regression of price vs BR1 behaves the best out of the three. Linear regression of price vs BR behaves better than all three.
+**Estimated a linear regression model. The higher the adjusted R square, the better the model. Linear regression of price vs BR1 behaves the best out of the three. Linear regression of price vs BR behaves better than all three.**
 
 ```{r}
 library(fastDummies)
@@ -103,7 +95,7 @@ summary(modelBR2)
 modelBR3 <- lm(log1p(price) ~ factor(BR_3PLUS), data=dataForLR) 
 summary(modelBR3)
 ```
-**6. Now we include two further variables into the model: room type and accommodates. Room type only contains a few values, but accommodates contains many different categories. First, let’s explore these. What kind of values do these two variables take? Show the counts!**
+**Included two further variables into the model: room type and accommodates. Room type only contains a few values, but accommodates contains many different categories.**
 
 Answer: 
 
@@ -118,7 +110,7 @@ accommodates
 table(dataForLR$accommodates)
 ```
 
-**7. Convert the room type into 3 categories: Entire home/apt, Private room, Other; and recode accommodates into 3 categories: “1”, “2”, “3 or more” **
+**Converted the room type into 3 categories: Entire home/apt, Private room, Other; and re-coded accommodates into 3 categories: “1”, “2”, “3 or more” **
 
 ```{r}
 dataForLR <- dataForLR %>% mutate(room_type = case_when(room_type == "Entire home/apt" ~ "Entire home/apt", room_type == "Private room" ~ "Private room", room_type == "Hotel room" | room_type == "Shared room" ~ "Other"))
@@ -130,9 +122,7 @@ table(dataForLR$room_type)
 table(dataForLR$accommodates)
 ```
 
-**8. Now amend your previous model with these two variables (the 3-category version you did above). Interpret and comment the more interesting/important results. Do not forget to explain what are the relevant reference categories and R2.**
-
-Answer: Room type - Other is not statistically significant. Rest of the categories are statistically significant. For each category a baseline is selected, for eg for accommodates, R finds the statistical significance of accommodates 2 with relation to accommodates 1. This is why we see 6 coefficients instead of 9. The adjusted R square before was 0.27. When we consider all 3 variables it is 0.399, which means this is a better model than price vs BR.
+**Amended my previous model with these two variables. Room type - Other is not statistically significant. Rest of the categories are statistically significant. For each category a baseline is selected, for eg for accommodates, R finds the statistical significance of accommodates 2 with relation to accommodates 1. This is why we see 6 coefficients instead of 9. The adjusted R square before was 0.27. When we consider all 3 variables it is 0.399, which means this is a better model than price vs BR.**
 
 ```{r}
 dataForLR1 <- dataForLR %>%
@@ -144,11 +134,10 @@ head(dataForLR)
 modelCombined <- lm(log1p(price) ~+factor(room_type)+factor(BR)+factor(accommodates), data=dataForLR1) 
 summary(modelCombined)
 ```
-**9. You should see that type “Other” is not statistically significant. What does this mean? Why do you think this is the case?**
 
-Answer: Yes, this means that the data doesn't provide evidence of an effect; it doesn't mean that such an effect cannot exist. I think it is coming as insignificant as the sample size is too small for Other type.
+**Type “Other” is not statistically significant.The data doesn't provide evidence of an effect; it doesn't mean that such an effect cannot exist. I think it is coming as insignificant as the sample size is too small for Other type.**
 
-**10. Now use the model above to predict (log) price for each listing in your data.**
+**Now we use the model above to predict (log) price for each listing in our data.**
 
 ```{r}
 dataForLR2 <- dataForLR1 %>% select(BR ,room_type, accommodates,price)
@@ -158,15 +147,15 @@ data <- dataForLR2 %>% mutate(predictedprice = predict(modelCombined, dataForLR2
 head(data)
 ```
 
-**11. Compute root-mean-squared-error (RMSE) of your predictions.**
+**Computing root-mean-squared-error (RMSE) of our predictions.**
 
 ```{r}
 sqrt(mean((log(data$price) - data$predictedprice)^2))
 ```
 
-**12. Now use your model to predict log price for a 2-bedroom apartment that accommodates 4 (i.e., a full 2BR apartment).**
+**Using our model to predict log price for a 2-bedroom apartment that accommodates 4 (i.e., a full 2BR apartment).**
 
-Answer: The price of a 2 bedroom apartment that accommodates 4 would be 171 dollars.
+**The price of a 2 bedroom apartment that accommodates 4 would be 171 dollars.**
 ```{r}
 testdata <-  data.frame("BR" = "2",                    
                         "room_type" = "Entire home/apt",
